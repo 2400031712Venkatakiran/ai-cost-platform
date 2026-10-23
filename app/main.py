@@ -8,7 +8,7 @@ from app.api.v1 import health
 from app.api.v1.router import api_router
 from app.core.config import get_settings
 from app.core.logging import setup_logging
-from app.db.database import engine
+from app.db.database import check_database_connection, engine
 
 settings = get_settings()
 setup_logging(settings.log_level)
@@ -19,7 +19,14 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Code before `yield` runs at startup; code after runs at shutdown."""
     logger.info("Starting %s v%s (%s)", settings.app_name, settings.app_version, settings.environment)
+
+    if await check_database_connection():
+        logger.info("Database connection verified")
+    else:
+        logger.error("Database is unreachable; /health/ready will return 503 until it recovers")
+
     yield
+
     logger.info("Shutting down; closing database connections")
     await engine.dispose()
 
